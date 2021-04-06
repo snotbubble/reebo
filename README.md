@@ -12,6 +12,7 @@ assume its busted unless there's a compiled binary
 - [ ] save source sample in .dyslex file... somewhere
 
 then the boring stuff:
+- [ ] fix whatever else was broken by changing the data to series
 - [ ] crayon list remove
 - [ ] crayon list move up/down
 - [ ] crayon list sort
