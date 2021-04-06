@@ -100,7 +100,7 @@ lexdat/1/nom: "control"
 lexdat/2/nom: "series"
 lexdat/1/cdx: 1
 lexdat/2/cdx: 2
-probe lexdat
+;probe lexdat
 lexdat/1/words: copy ["Red" "opt" "attempt" "break" "catch" "compose" "disarm" "dispatch" "does" "either" "else" "exit" "forall" "foreach" "for" "forever" "forskip" "func" "function" "halt" "has" "if" "launch" "loop" "next" "quit" "reduce" "remove-each" "repeat" "return" "switch" "throw" "try" "unless" "until" "while" "do"]
 lexdat/2/words: copy ["alter" "append" "array" "at" "back" "change" "clear" "copy" "difference" "exclude" "extract" "find" "first" "found?" "free" "head" "index?" "insert" "intersect" "join" "last" "length?" "load" "maximum-of" "minimum-of" "offset?" "parse" "pick" "poke" "remove" "remove-each" "repend" "replace" "reverse" "select" "skip" "sort" "switch" "tail" "union" "unique"]
 
@@ -481,18 +481,34 @@ view/tight/flags/options [
 	below
 	hh: panel 800x55 35.35.35 [
 		lexers: drop-list 200x30 font-name "consolas" font-size 10 font-color 180.180.180 bold data (collect [foreach file read %./ [ if (find (to-string file) ".dyslex") [keep rejoin ["./" (to-string file)]] ]]) on-change [
-			unless noupdate [ 
-				print [ "lexers change event triggered..." ] 
-				noupdate: true 
+			unless noupdate [
+				print [ "lexers change event triggered..." ]
+				noupdate: true
 				;probe face/data/(face/selected)
-				lxn: copy face/data/(face/selected) 
-				parse lxn [ remove thru "./" to "." remove to end ] 
+				lxn: copy face/data/(face/selected)
+				parse lxn [ remove thru "./" to "." remove to end ]
 				lexname/text: lxn
 				;probe face/data/(face/selected)
-				blexdat: read/binary to-file face/data/(face/selected)
-				lexdat: load/as blexdat 'redbin
-				foreach c lexdat [ print [ "verifying lexdat entry: " c ] ]
-				;probe lexdat
+				;blexdat: read/binary to-file face/data/(face/selected)
+				;lexdat: load/as blexdat 'redbin
+				lexdat: do [ reduce load to-file face/data/(face/selected) ]
+			    ;clear maap/pane
+				foreach c lexdat [
+					print [ "restoring list ui for crayon" c/nom "at index" c/cdx ]
+					append maap/pane layout/only getmylayout c/cdx c/nom c/fgc c/bgc c/bol c/tal
+					;probe maap/pane
+				]
+				foreach-face maap [
+					;probe face/pane
+					unless none? face/extra/pos [
+						;probe face/extra/pos
+						if face/extra/pos = 'bg [
+							if none? face/color [ face/color: 50.50.50 ]
+							face/offset/y: to-integer ((face/extra/idx - 1) * (face/size/y + 5))
+						]
+					]
+				]
+				nudgez
 				cidx: 1
 				noupdate: false
 				doselect 1 "^-" "lexers"
@@ -505,9 +521,10 @@ view/tight/flags/options [
 				noupdate: true
 			   	newlexname: rejoin [ "./" lexname/text ".dyslex" ]
 				print [ "lnew button event triggered, writing lexdat..." ]
-				save/as blexdat: #{} lexdat 'redbin
-				probe blexdat
-			    write/binary to-file newlexname blexdat
+				;save/as blexdat: #{} lexdat 'redbin
+				;probe blexdat
+			    ;write/binary to-file newlexname blexdat
+				write to-file newlexname lexdat
 				clear lexers/data
 				lexers/data: (collect [foreach file read %./ [ if (find (to-string file) ".dyslex") [keep rejoin ["./" (to-string file)]] ]])
 				lexers/selected: index? find lexers/data newlexname
@@ -527,7 +544,7 @@ view/tight/flags/options [
 					estr: rejoin [ estr "words:^-^-" (c/words) "^/^/^/^/"]
 				]
 				op: request-dir
-				unless none? op [ 
+				unless none? op [
 		    		write to-file rejoin [ op lexname "_output.txt" ] estr
 				]
 			]
@@ -881,7 +898,7 @@ view/tight/flags/options [
 			lexers/selected: index? find lexers/data "./default.dyslex"
 		]
 	    foreach c lexdat [
-			probe c
+			;probe c
 			;append maap/pane layout/only  c/lay
 			;print [ "making ui from data..." c/cdx c/nom c/fgc/ c/rule ]
 			append maap/pane layout/only getmylayout c/cdx c/nom c/fgc c/bgc c/bol c/tal
