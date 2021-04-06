@@ -16,6 +16,7 @@ then the boring stuff:
 - [ ] crayon list sort
 - [ ] check for pane face accumulation (clearing breaks it)
 - [ ] investigate drag reordering of crayons
+- [ ] reflow params
 - [ ] finish red .dyslex file
 - [ ] implement bold & italic for the rich-text field
 - [ ] investigate background color for rich-text, without drawing boxes!
