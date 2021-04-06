@@ -14,6 +14,7 @@ then the boring stuff:
 - [ ] crayon list remove
 - [ ] crayon list move up/down
 - [ ] crayon list sort
+- [ ] check for pane face accumulation (clearing breaks it)
 - [ ] investigate drag reordering of crayons
 - [ ] finish red .dyslex file
 - [ ] implement bold & italic for the rich-text field
