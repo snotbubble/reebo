@@ -22,3 +22,4 @@ then the boring stuff:
 - [ ] investigate background color for rich-text, without drawing boxes!
 - [ ] add an exporter for Geany (find a compatible lexer 1st that works with semicolon comments and square brackets)
 - [ ] add an exporter for emacs (probably based on lisp major mode, with overrides)
+- [ ] rename to reebo, for emphasis
