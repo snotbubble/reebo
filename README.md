@@ -10,14 +10,15 @@ assume its busted unless there's a compiled binary
 - [ ] save source sample in .dyslex file... somewhere
 
 then the boring stuff:
-- [ ] crayon list remove
-- [ ] crayon list move up/down
-- [ ] crayon list sort
-- [ ] check for pane face accumulation (clearing breaks it)
+- [ ] add crayon list remove
+- [ ] add crayon list move up/down
+- [ ] add crayon list sort
+- [ ] fix pane face accumulation (clearing breaks it)
 - [ ] investigate drag reordering of crayons
-- [ ] reflow params
+- [ ] investigate exposing tab-width for gtk area widget
+- [ ] add reflow params
 - [ ] finish red .dyslex file
-- [ ] implement bold & italic for the rich-text field
+- [ ] add bold & italic for the rich-text field
 - [ ] investigate background color for rich-text, without drawing boxes!
 - [ ] add an exporter for Geany (find a compatible lexer 1st that works with semicolon comments and square brackets)
 - [ ] add an exporter for emacs (probably based on lisp major mode, with overrides)
