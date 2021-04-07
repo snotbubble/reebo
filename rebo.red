@@ -13,20 +13,27 @@ Red [ needs 'view ]
 ;; X : testing it
 ;;
 ;;
-;; TODO: [!] change data to series, use position as index
-;; TODO: [ ] save/load code as bin: save/as brule: #{} rule 'redbin
+;; TODO: [X] change data to series, use position as index
+;; TODO: [X] fix anything busted by the above
+;; TODO: [!] fix possible face accumulation
+;; TODO: [-] save/load code as bin: save/as brule: #{} rule 'redbin
+;; TODO: [X] add exact function aquisition using parse print object
+;; TODO: [X] add event that backwashes the rule function
 ;; TODO: [!] add crayon toolbar: add remove sort move-up move-down
 ;; TODO: [X] add sort by char-count
 ;; TODO: [ ] investigate drag to re-order crayons
-;; TODO; [?] investigate loopless access to the data and ui items
-;; TODO; [-] add 3rd pane to top half, make it a tab-pane with: raw-data, console output
-;; TODO; [X] add backwash bold italic and words
-;; TODO; [X] add bold/italic in crayon list
+;; TODO: [-] investigate loopless access to the data and ui items
+;; TODO: [-] add 3rd pane to top half, make it a tab-pane with: raw-data, console output
+;; TODO: [X] add backwash bold italic and words
+;; TODO: [X] add bold/italic in crayon list
 ;; TODO: [X] add backwash rule
-;; TODO; [ ] add bgcolor bold italic to rich-text data
-;; TODO; [!] add save/load dyslex files
-;; TODO; [ ] add parse presets for capture rule param if its doable & doesn't lock-up
-;; TODO; [ ] add complete red dyslex file, save as default, embase it when everything is done
+;; TODO: [ ] add bold and italic to rich-text field
+;; TODO: [ ] add bgcolor to rich-text data
+;; TODO: [X] add save/load dyslex files
+;; TODO: [!] add sample code to dyslex file
+;; TODO: [!] finish default parse rule
+;; TODO: [!] add complete red dyslex file, save as default, embase it when done
+;; TODO: [ ] finish theming, test with other WMs
 
 
 marg: 10
@@ -34,7 +41,22 @@ tabh: 0 ;; height of the statusbar (none atm)
 noupdate: false	;; stop ui chain-reactions
 cidx: 0  ;; the list selection index
 hil: 180.60.50
-srctxt: {Red [needs 'view]^/makepane: function [ ] [^/^-p: compose/deep [ pane 100x100 255.0.0 ]^/^-p^/]^/view [^/^-p: pane 400x400 [^/^-^-button 400x30 "make pane" [ append p/pane layout/only makepane ]^/^-]^/]}
+srctxt: {Red [needs 'view]
+makepanel: function [ ] [
+	p: compose/deep [ panel 100x100 255.0.0 loose [
+			l: text 120x30 font-name "consolas" font-size 10 font-color 180.180.180 bold
+			field 120x30 with [ text: "txt goes here" ] on-change [ l/text: face/text ]
+		]
+	]
+	p
+]
+view [
+	p: panel 400x400 [
+		below
+		button 400x30 "make panel" [ append p/ pane layout/only makepanel ]
+	]
+	do [ button/offset: 0x370 button/size: 400x30 ]
+]}
 
 getmylayout: func [ cdx nom fgc bgc bol tal ] [ 
     compose/deep [
@@ -75,20 +97,23 @@ crayon: context [
 	bol: true
 	tal: true
 	words: ["keywords"]
-	rule: func [ /local o pos s ] [
-print [ "lexdat" cdx "rule triggered..." ]
-o: copy []
-p: 0x0
-s: copy srctxt
-print [ "lexdat" cdx " rule vars are: " o pos s ]
+	rule: func [][
+;print ["lexdat" cdx "rule triggered..."] 
+o: copy [] 
+p: 0x0 
+s: copy srctxt 
+;print ["lexdat" cdx " rule vars are: " o p s] 
+ws: charset [ " /:()[]^/^-" ]
 foreach w words [
 	parse s [
-		any (pos: 0x0) [ 
-			to w mi: (p/x: index? mi) thru w mo: (p/y: (index? mo) -  (index? mi)) 
-		] 
-	   	( append o p unless none? fgc [append o fgc] )
+		any [ 
+			(p: 0x0)
+			to [1 ws ahead w] skip mi: (p/x: index? mi) 
+			thru w mo: (p/y: (index? mo) - (index? mi))
+			(append o p unless none? fgc [append o fgc])
+		]
 	]
-]
+] 
 o
 ]]
 
@@ -110,6 +135,7 @@ renderitall: func [ ] [
 	foreach c lexdat [
 		print [ "checking words for: " c/nom ]	
 		unless none? c/words [
+			print "c/words: " c/words
 		    o: c/rule
 			print [ "lexdat rule returns: " o  ]
 		    append rxdat copy o
@@ -173,9 +199,11 @@ doselect: func [ i tabi tabf ] [
 		either none? lexdat/:cidx/tal [ amital/data: false ] [ if logic? lexdat/:cidx/tal [ print [ tabi "^-^-sending italic " lexdat/:cidx/tal "to params.." ] amital/data: lexdat/:cidx/tal ] ]
 		theword/text: ""
 		print [ tabi "^-^-checking words " lexdat/:cidx/words ]
-		either none? lexdat/:cidx/words [ clear thewords/data ] [ if (length? lexdat/:cidx/words) > 0 [ print [ tabi "^-^-sending thewords to params.." ] thewords/data: lexdat/:cidx/words ] ]
+		either none? lexdat/:cidx/words [ clear thewords/data ] [ print [ tabi "^-^-sending thewords to params.." ] thewords/data: lexdat/:cidx/words ]
 		print [ tabi "^-^-sending therule to params..."] 
-		therule/text: mold get 'lexdat/:cidx/rule
+		;therule/text: mold get 'lexdat/:cidx/rule
+		ftxt: "" parse (form lexdat/:cidx) [ thru "rule: " copy ftxt thru "o^/]" ]
+		therule/text: ftxt
 		noupdate: false
 		print [ tabi "^-params sent, breaking out of data loop..."]
 	]
@@ -281,12 +309,10 @@ backwashwords: func [ ] [
 	either lexdat/:cidx/cdx = cidx [
 		print [ "^-^-checking thewords param: " thewords/data ]
 		unless none? thewords/data [
-			if (length? thewords/data) > 0 [
-				print [ "^-^-^-old words: " lexdat/:cidx/words ]
-				;clear lexdat/:cidx/words
-				lexdat/:cidx/words: copy thewords/data
-				print [ "^-^-^-new words: " lexdat/:cidx/words ]
-			]
+			print [ "^-^-^-old words: " lexdat/:cidx/words ]
+		    ;clear lexdat/:cidx/words
+		    lexdat/:cidx/words: copy thewords/data
+		    print [ "^-^-^-new words: " lexdat/:cidx/words ]
 		]
 	] [ print "lexdat position and index are out of sync" ]
 	noupdate: false
@@ -294,12 +320,25 @@ backwashwords: func [ ] [
 ]
 
 backwashrule: func [ ] [
+	print [ "backwashrule func triggered..." ]
 	noupdate: true
 	if lexdat/:cidx/cdx = cidx [
 		unless none? therule/text [
 			if therule/text <> "" [
-				lexdat/:cidx/rule: load therule/text
-				;probe c/rule
+				newobj: context [
+					cdx: cidx
+					nom: copy lexdat/:cidx/nom
+					fgc: lexdat/:cidx/fgc
+					bgc: lexdat/:cidx/bgc
+					bol: lexdat/:cidx/bol
+					tal: lexdat/:cidx/tal
+					words: copy lexdat/:cidx/words
+					rule: do (load therule/text)
+				]
+				;lexdat/:cidx: copy newobj
+				lexdat/:cidx/rule: do (bind load therule/text lexdat/:cidx)
+			    rr: "" parse (form lexdat/:cidx) [ thru "rule:" copy rr thru "o^/]" ]
+				print [ "changed rule:^/" rr ]
 			]
 		]
 	]
@@ -560,7 +599,7 @@ view/tight/flags/options [
 					noupdate: true
 				    cidx: (length? lexdat) + 1
 					print [ "making new crayon at cidx: " cidx ]
-				    append lexdat copy crayon
+				    append lexdat copy/deep crayon
 					probe lexdat/:cidx
 					lexdat/:cidx/cdx: cidx
 				    append maap/pane layout/only getmylayout cidx lexdat/:cidx/nom lexdat/:cidx/fgc lexdat/:cidx/bgc lexdat/:cidx/bol lexdat/:cidx/tal
@@ -842,7 +881,7 @@ view/tight/flags/options [
 				rulepanel: panel 380x500 [
 					below
 					rullbl: text 120x30 "capture rule"
-					therule: area 380x200 35.35.35 with [ text: "rich-text data-building code goes here" ] font-name "consolas" font-size 9 font-color 255.180.80 bold on-enter [ backwashrule ]
+					therule: area 380x200 35.35.35 with [ text: "rich-text data-building code goes here" ] font-name "consolas" font-size 9 font-color 255.180.80 bold on-change [ backwashrule ]
 					across
 					doit: button 120x30 "try it" [
 						clear mddp/data
@@ -851,7 +890,14 @@ view/tight/flags/options [
 					    ;lexdat/(cidx)/rule s o
 						
 					   	mddp/text: copy mccp/text 
-						mddp/data: lexdat/:cidx/rule
+						foreach c lexdat [
+							if c/cdx = cidx [
+								rdat: c/rule
+								print [ "lexdat" cidx "rule returns:" rdat ]
+								break
+							]
+						]
+						mddp/data: rdat
 						;clear s
 						;print [ "rtdat: " o ]
 						;clear o
