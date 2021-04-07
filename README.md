@@ -3,7 +3,7 @@ primarily a (frustrating) excercise in modifying code at runtime, as well as lea
 
 assume its busted unless there's a compiled binary
 
-![screenie](210408_reebo_screenie.png)
+![screenie](210408_reebo_screenie_x700.png)
 
 # todo
 - [ ] finish default parse that works with 0\~1-of-charset+word+0\~1-of-charset to grab things like 'panel' in '/panel/' 'panel:' '(panel' ' panel ', but not 'mypanel'
