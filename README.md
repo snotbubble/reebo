@@ -10,9 +10,9 @@ assume its busted unless there's a compiled binary
 - [ ] save source sample in .dyslex file... somewhere
 
 then the boring stuff:
+- [ ] fix memory vs parse (common problem, inclined to not use it)
 - [ ] add crayon list remove
 - [ ] add crayon list move up/down
-- [ ] add crayon list sort
 - [ ] investigate drag reordering of crayons
 - [ ] investigate exposing tab-width for gtk area widget
 - [ ] finish red .dyslex file
