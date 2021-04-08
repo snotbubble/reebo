@@ -31,6 +31,8 @@ Red [ needs 'view ]
 ;; TODO: [-] add 3rd pane to top half, make it a tab-pane with: raw-data, console output
 ;; TODO: [-] investigate loopless access to the data and ui items
 ;; TODO: [-] save/load code as bin: save/as brule: #{} rule 'redbin
+;; TODO: [ ] add local/global source switcher to source toolbar, store local per-item in lexdat
+;; TODO: [ ] add font-size to source toolbar
 ;; TODO: [ ] investigate drag to re-order crayons
 ;; TODO: [ ] add bold and italic to rich-text field
 ;; TODO: [ ] add bgcolor to rich-text data
@@ -61,9 +63,9 @@ view [
 
 getmylayout: func [ cdx nom fgc bgc bol tal ] [ 
     compose/deep [
-		panel 300x55  with [ color: (bgc) ] extra [ idx: (cdx) cname: (nom) pos: 'bg ] draw [ ] [
+	    panel 300x55  with [ color: (bgc) ] extra [ idx: (cdx) cname: (nom) pos: 'bg ] draw [ ] [
 			below
-			text 200x30 with [ 
+		    text 200x30 with [ 
 				text: (nom) 
 				color: (either none? bgc [50.50.50] [bgc ])
 				font: make font! [ 
@@ -72,7 +74,7 @@ getmylayout: func [ cdx nom fgc bgc bol tal ] [
 					size: 24 
 					style: [ (unless none? bol [if bol ['bold]])  (unless none? tal [if tal ['italic]])  ] 
 				] 
-			] extra [ idx: (cdx) pos: 'fg ]
+			] extra [ idx: (cdx) cname: (nom) pos: 'fg ]
 		] on-down [ 
 			cidx: face/extra/idx
 			clear face/draw
@@ -99,24 +101,26 @@ crayon: context [
 	tal: true
 	words: ["keywords"]
 	rule: func [][
-;print ["lexdat" cdx "rule triggered..."] 
 o: copy [] 
 p: 0x0 
 s: copy srctxt 
-;print ["lexdat" cdx " rule vars are: " o p s] 
 ws: charset [ " /:()[]^/^-" ]
 foreach w words [
+	wl: (length? w)
 	parse s [
 		any [ 
 			(p: 0x0)
-			to [1 ws ahead w] skip mi: (p/x: index? mi) 
-			thru w mo: (p/y: (index? mo) - (index? mi))
-			(append o p unless none? fgc [append o fgc])
+			to [1 ws ahead w] skip mi: 
+			(p/x: index? mi) 
+			wl skip mo: 
+			[ahead 1 ws (p/y: (index? mo) - p/x) (unless none? fgc [append o p append o fgc]) | skip ] ; | <emacs issue :(
 		]
 	]
 ] 
 o
-]]
+]
+	scratch: {per-crayon sample code goes here^\it is saved with the crayon}
+]
 
 lexdat: copy []
 append lexdat copy/deep crayon
@@ -127,29 +131,60 @@ lexdat/2/nom: "series"
 lexdat/1/cdx: 1
 lexdat/2/cdx: 2
 ;probe lexdat
-lexdat/1/words: copy ["Red" "opt" "attempt" "break" "catch" "compose" "disarm" "dispatch" "does" "either" "else" "exit" "forall" "foreach" "for" "forever" "forskip" "func" "function" "halt" "has" "if" "launch" "loop" "next" "quit" "reduce" "remove-each" "repeat" "return" "switch" "throw" "try" "unless" "until" "while" "do"]
-lexdat/2/words: copy ["alter" "append" "array" "at" "back" "change" "clear" "copy" "difference" "exclude" "extract" "find" "first" "found?" "free" "head" "index?" "insert" "intersect" "join" "last" "length?" "load" "maximum-of" "minimum-of" "offset?" "parse" "pick" "poke" "remove" "remove-each" "repend" "replace" "reverse" "select" "skip" "sort" "switch" "tail" "union" "unique"]
+lexdat/1/words: copy ["Red" "opt" "attempt" "break" "catch" "compose" "disarm" "dispatch" "does" "either" "else" "exit" "forall" "foreach" "for" "forever" "forskip" "func" "function" "halt" "has" "if" "launch" "loop" "next" "quit" "reduce" "repeat" "return" "switch" "throw" "try" "unless" "until" "while" "do"]
+lexdat/2/words: copy ["alter" "append" "array" "at" "back" "change" "clear" "copy" "difference" "exclude" "extract" "find" "first" "found?" "free" "head" "index?" "insert" "intersect" "join" "last" "length?" "maximum-of" "minimum-of" "offset?" "pick" "poke" "remove" "remove-each" "repend" "replace" "reverse" "select" "skip" "sort" "switch" "tail" "union" "unique"]
+lexdat/1/scratch: {attempt (attempt) attempt123 'attempt attempt? to-attempt /attempt [attempt]^/attempt makeattempt^-attempt^/:attempt^-attempt: attempt}
+lexdat/2/scratch: {append (append) append123 'append append? to-append /append [append]^/append makeappend^-append^/:append^-append: append}
+
+localrender: func [] [
+	noupdate: true
+	unless none? mccp/text [
+		unless mccp/text = "" [
+			mddp/text: copy mccp/text
+			rxdat: copy [] 
+			foreach c lexdat [
+				if c/cdx = cidx [
+					tdat: c/rule
+					break
+				]
+			]
+			if (length? tdat) > 0 [
+				clear mddp/data
+				foreach d tdat [ unless none? d [ append rxdat d ] ]
+				print [ "localrender: checking richtext data before writing:^/" rxdat ]
+				;mddp/data: copy rxdat
+				clear rxdat
+			]
+		]
+	]
+	noupdate: false
+]
 
 renderitall: func [ ] [
 	;clear mddp/data
+	noupdate: true
     rxdat: copy []
 	foreach c lexdat [
-		print [ "checking words for: " c/nom ]	
+		print [ "^-checking words for: " c/nom ]	
 		unless none? c/words [
-			print "c/words: " c/words
-		    o: c/rule
-			print [ "lexdat rule returns: " o  ]
-		    append rxdat copy o
-			clear o
-			print [ "incramental rxdat: " rxdat ]
+			unless c/words = "" [
+				;print "c/words: " c/words
+				o: c/rule
+				;print [ "lexdat rule returns: " o  ]
+				foreach r o [ unless none? r [ append rxdat r ] ]
+				;append rxdat copy o
+				;clear o
+				;print [ "incramental rxdat: " rxdat ]
+			]
 		]
    	]
 	if (length? rxdat) > 0 [
 		mddp/text: copy mccp/text
 		mddp/data: copy rxdat
-		print [ "copied " rxdat " to " mddp/data ]
+		;print [ "copied " rxdat " to " mddp/data ]
 		clear rxdat
 	]
+	noupdate: false
 ]
 
 cxhx: function [ c ] [
@@ -205,6 +240,7 @@ doselect: func [ i tabi tabf ] [
 		;therule/text: mold get 'lexdat/:cidx/rule
 		ftxt: "" parse (form lexdat/:cidx) [ thru "rule: " copy ftxt thru "o^/]" ]
 		therule/text: ftxt
+		if sourcemode/selected = 2 [ mccp/text: lexdat/:cidx/scratch ]
 		noupdate: false
 		print [ tabi "^-params sent, breaking out of data loop..."]
 	]
@@ -352,6 +388,8 @@ backwashrule: func [ ] [
 
 ripplecrayons: func [ ] [
 	print [ "ripplecrayons triggered..." ] 
+	print [ "^-current cidx is:" cidx ]
+	;; stacks crayons by id, which should be synced to lexdat cdx
 	lo: 0
 	tmarg: 20
 	foreach-face maap [
@@ -359,14 +397,16 @@ ripplecrayons: func [ ] [
 		unless none? face/extra/pos [
 			;probe face/extra/pos
 			if face/extra/pos = 'bg [
+				;print [ "^-checking crayon" face/extra/cname "index:" face/extra/idx ]
 				if none? face/color [ face/color: 50.50.50 ]
+				either face/extra/idx = cidx [ append face/draw compose [ pen (hil) line-width 6 box 0x0 (face/size - 3x0) ] ] [ clear face/draw ]
 				face/offset/y: tmarg + to-integer ((face/extra/idx - 1) * (face/size/y + 5))
-				lo: face/offset/y + face/size/y
+				lo: max lo (face/offset/y + face/size/y)
 			]
 		]
 	]
 	maap/size/y: lo + 50
-	probe maap/size/y
+	;probe maap/size/y
 ]
 
 refloparams: func [ pp ] [
@@ -563,13 +603,13 @@ nudgez: func [] [
 
 rippleparms: func [] [
 	wordpanel/offset/y: max (bgcp/offset/y + bgcp/size/y + 10) (amital/offset/y + amital/size/y + 10)
-	wordpanel/size/y: (rulepanel/offset/y - wordpanel/offset/y) - 10
-	thewords/size/y: wordpanel/size/y - 90
-    ;rulepanel/offset/y: wordpanel/offset/y + wordpanel/size/y + 10
-	;rulepanel/size/y: mbbp/size/y - (rulepanel/offset/y + 20)
-	;therule/size/y: rulepanel/size/y - 55
-	;doit/offset/y: rulepanel/size/y - 40
-	;revertit/offset/y: doit/offset/y
+	;wordpanel/size/y: (rulepanel/offset/y - wordpanel/offset/y) - 10
+	;thewords/size/y: wordpanel/size/y - 90
+    rulepanel/offset/y: wordpanel/offset/y + wordpanel/size/y + 10
+	rulepanel/size/y: mbbp/size/y - (rulepanel/offset/y + 20)
+	therule/size/y: rulepanel/size/y - 100
+	doit/offset/y: rulepanel/size/y - 40
+	revertit/offset/y: doit/offset/y
 ]
 
 view/tight/flags/options [
@@ -632,7 +672,7 @@ view/tight/flags/options [
 				]
 				op: request-dir
 				unless none? op [
-		    		write to-file rejoin [ op lexname "_output.txt" ] estr
+		    		write to-file rejoin [ op lexname "_export.txt" ] estr
 				]
 			]
 		]
@@ -671,7 +711,46 @@ view/tight/flags/options [
 				pad 5x0 button 30x33 "-" font-name "consolas" font-size 10 font-color 180.180.180 bold [ ]
 			    pad 5x0 button 30x33 "▼" font-name "consolas" font-size 10 font-color 180.180.180 bold [ ]
 				pad 5x0 button 30x33 "▲" font-name "consolas" font-size 10 font-color 180.180.180 bold [ ]
-				pad 5x0 button 30x33 "↓" font-name "consolas" font-size 10 font-color 180.180.180 bold [ ]
+				pad 5x0 button 30x33 "↓" font-name "consolas" font-size 10 font-color 180.180.180 bold [
+					noupdate: true
+					print ["crayon sorting started..."]
+					cn: lexdat/:cidx/nom
+					print [ "^-current crayon is: " cn ]
+					o: lexdat/1/nom
+					delt: false
+					foreach c lexdat [ delt: (c/nom > o) o: c/nom if delt [ break ] ]
+					sby: -1x1
+					if delt [ sby: 1x-1 ]
+					sort/compare lexdat func [ a b ] [
+						case [
+							a/nom > b/nom [sby/x]
+							a/nom < b/nom [sby/y]
+							a/nom = b/nom [0]
+						]
+					]
+					n: 1
+					foreach c lexdat [
+						foreach-face maap [ 
+							if face/extra/cname = c/nom [ 
+								;print ["^-changing face" face/extra/cname "index from:" face/extra/idx " to: " n ] 
+								face/extra/idx: n 
+								;print ["^-^-doublechecking face" face/extra/cname "index:" face/extra/idx ] 
+							]
+						]
+				    	c/cdx: n if c/nom = cn [ 
+							print [ "^-^-new index of current crayon" cn "is" n ] 
+							cidx: n
+						]
+						n: n + 1 
+					]
+					;clear maap/pane
+					;foreach c lexdat [ append maap/pane layout/only getmylayout c/cdx c/nom c/fgc c/bgc c/bol c/tal ]
+					ripplecrayons
+					nudgez
+					noupdate: false
+					;probe cidx
+					;doselect cidx "^-" "new-crayon button"					
+				]
 				;button 30x33 "⮍" font-name "consolas" font-size 10 font-color 180.180.180 bold [ ]
 			]
 		]
@@ -899,7 +978,7 @@ view/tight/flags/options [
 					srtlen: button 60x30 "↓#" [
 						if (length? thewords/data) > 0 [
 							noupdate: true
-							;g: copy thewords/data
+							; g : copy thewords/data
 						    o: (length? thewords/data/1)
 							delt: 0
 						    foreach d thewords/data [ delt: ((length? d) - o) o: (length? d) if delt > 0 [ break ] ]
@@ -912,7 +991,7 @@ view/tight/flags/options [
 									]
 								]
 							] [
-								sort/compare g func [a b] [
+								sort/compare thewords/data func [a b] [
 									case [
 										(length? a) > (length? b) [-1]
 										(length? a) < (length? b) [1]
@@ -950,7 +1029,7 @@ view/tight/flags/options [
 						foreach c lexdat [
 							if c/cdx = cidx [
 								rdat: c/rule
-								print [ "lexdat" cidx "rule returns:" rdat ]
+								;print [ "lexdat" cidx "rule returns:" rdat ]
 								break
 							]
 						]
@@ -981,10 +1060,28 @@ view/tight/flags/options [
 		mcc: panel 390x400 40.40.40 [
 			mcch: panel 390x55 45.45.45 [
 				text 200x30 "source" font-name "consolas" font-size 24 font-color 80.80.80 bold
+				sourcemode: drop-list 100x30 data [ "global" "local" ] select 1  font-name "consolas" font-size 9 font-color 180.180.180 bold [
+					noupdate: true
+					switch sourcemode/selected [
+						1 [ mccp/font/color: 80.255.80 mccp/text: srctxt renderitall  ]
+						2 [ mccp/font/color: 255.80.80 mccp/text: lexdat/:cidx/scratch localrender ]
+					]
+					noupdate: false
+				]
 			]
 			mccp: area 390x300 40.40.40 font-name "consolas" font-size 9 font-color 128.255.255 bold with [
 				text: srctxt
-			] on-change [ srctxt: face/text ] 
+			] on-change [ 
+			    unless noupdate [
+					unless none? face/text [
+						print [ "mccp text change event triggered..." ]
+						switch sourcemode/selected [
+							1 [ srctxt: face/text renderitall ]
+							2 [ lexdat/:cidx/scratch: face/text localrender ]
+						]
+					]
+				]
+			]
 		]
 		vv: panel 10x390 30.30.30 loose [] on-drag [ nudgev ]
 		mdd: panel 390x400 40.40.40 [
@@ -1006,16 +1103,9 @@ view/tight/flags/options [
 			;print [ "making ui from data..." c/cdx c/nom c/fgc/ c/rule ]
 			append maap/pane layout/only getmylayout c/cdx c/nom c/fgc c/bgc c/bol c/tal
 		]
-		foreach-face maap [
-			;probe face/pane
-			unless none? face/extra/pos [
-				;probe face/extra/pos
-				if face/extra/pos = 'bg [
-					if none? face/color [ face/color: 50.50.50 ]
-					face/offset/y: to-integer ((face/extra/idx - 1) * (face/size/y + 5))
-				]
-			]
-		]
+	    ripplecrayons
+		cidx: 1
+		doselect cidx "^-" "view initialize"
 		lsave/offset/x: tp/size/x - (lsave/size/x + marg)
 	    lnew/offset/x: lsave/offset/x - (lnew/size/x + marg)
 		lexname/offset/x: (lexers/offset/x + lexers/size/x + marg)
