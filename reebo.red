@@ -719,7 +719,22 @@ view/tight/flags/options [
 					noupdate: false
 					doselect "^-" "new-crayon button"	
 			    ]
-				pad 5x0 button 30x33 "-" font-name "consolas" font-size 10 font-color 180.180.180 bold [ ]
+				pad 5x0 button 30x33 "-" font-name "consolas" font-size 10 font-color 180.180.180 bold [ 
+					noupdate: true
+					remove-each n lexdat [ n/cdx = cidx ]
+					remove-each n maap/pane [ n/extra/idx = cidx ]
+					unless cidx = 1 [ cidx: cidx - 1 ]
+					clear maap/pane
+					n: 1
+					foreach c lexdat [ 
+						c/cdx: n n: n + 1
+						append maap/pane layout/only getmylayout c/cdx c/nom c/fgc c/bgc c/bol c/tal
+					]
+					ripplecrayons
+					nudgez
+					noupdate: false
+					doselect "^-" "remove-crayon button"
+				]
 			    pad 5x0 button 30x33 "▼" font-name "consolas" font-size 10 font-color 180.180.180 bold [ 
 					if cidx < (length? lexdat) [
 						fromname: lexdat/:cidx/nom
@@ -753,7 +768,39 @@ view/tight/flags/options [
 						ripplecrayons
 					]
 				]
-				pad 5x0 button 30x33 "▲" font-name "consolas" font-size 10 font-color 180.180.180 bold [ ]
+				pad 5x0 button 30x33 "▲" font-name "consolas" font-size 10 font-color 180.180.180 bold [ 
+					if cidx > 1 [
+						fromname: lexdat/:cidx/nom
+						toname: lexdat/(cidx - 1)/nom
+						print [ "changing lexdat" lexdat/(cidx - 1)/cdx "to" cidx ]
+						lexdat/(cidx - 1)/cdx: cidx
+						print [ "changing lexdat" lexdat/(cidx)/cdx "to" (cidx - 1) ]
+						lexdat/:cidx/cdx: (cidx - 1)
+						foreach-face maap [
+							print [ "checking crayon" face/extra/cname ]
+						    if face/extra/cname = fromname [
+								print [ "^-changing crayon" face/extra/cname "idx from" face/extra/idx "to" (cidx - 1) ]
+								face/extra/idx: (cidx - 1)
+								print [ "^-^-verifying crayon" face/extra/cname "idx:" face/extra/idx ]
+							] 
+						    if face/extra/cname = toname [
+							    print [ "^-changing crayon" face/extra/cname "idx from" face/extra/idx "to" cidx ]
+							    face/extra/idx: cidx
+							    print [ "^-^-verifying crayon" face/extra/cname "idx:" face/extra/idx ]
+							]
+						]
+						sort/compare lexdat func [ a b ] [
+							case [
+								a/cdx > b/cdx [-1]
+								a/cdx < b/cdx [1]
+								a/cdx = b/cdx [0]
+							]
+						]
+						foreach c lexdat [ probe c/cdx ]
+						cidx: cidx - 1
+						ripplecrayons
+					]
+				]
 				pad 5x0 button 30x33 "↓" font-name "consolas" font-size 10 font-color 180.180.180 bold [
 					noupdate: true
 					print ["crayon sorting started..."]
