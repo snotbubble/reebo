@@ -13,10 +13,12 @@ Red [ needs 'view ]
 ;; X : testing it
 ;;
 ;;
-;; TODO: [?] add sample code to dyslex file
+;; TODO: [?] add sample code to dyslex file (requires extra layer of do load shitfuckery)
 ;; TODO: [!] add crayon toolbar: add remove sort move-up move-down
 ;; TODO: [!] finish default parse rule
 ;; TODO: [!] add complete red dyslex file, save as default, embase it when done
+;; TODO: [X] add local/global source switcher to source toolbar
+;; TODO: [X] add local code sample per item in lexdat
 ;; TODO: [X] change data to series, use position as index
 ;; TODO: [X] fix anything busted by the above
 ;; TODO: [X] fix possible face accumulation
@@ -29,9 +31,8 @@ Red [ needs 'view ]
 ;; TODO: [X] add save/load dyslex files
 ;; TODO: [X] add reflow params
 ;; TODO: [-] add 3rd pane to top half, make it a tab-pane with: raw-data, console output
-;; TODO: [-] investigate loopless access to the data and ui items
+;; TODO: [-] investigate loopless access to ui items
 ;; TODO: [-] save/load code as bin: save/as brule: #{} rule 'redbin
-;; TODO: [ ] add local/global source switcher to source toolbar, store local per-item in lexdat
 ;; TODO: [ ] add font-size to source toolbar
 ;; TODO: [ ] investigate drag to re-order crayons
 ;; TODO: [ ] add bold and italic to rich-text field
@@ -44,7 +45,8 @@ tabh: 0 ;; height of the statusbar (none atm)
 noupdate: false	;; stop ui chain-reactions
 cidx: 0  ;; the list selection index
 hil: 180.60.50
-srctxt: {Red [needs 'view]
+srctxt: {source text goes here}
+globsrc: {Red [needs 'view]
 makepanel: function [ ] [
 	p: compose/deep [ panel 100x100 255.0.0 loose [
 			l: text 120x30 font-name "consolas" font-size 10 font-color 180.180.180 bold
@@ -79,7 +81,7 @@ getmylayout: func [ cdx nom fgc bgc bol tal ] [
 			cidx: face/extra/idx
 			clear face/draw
 			append face/draw compose [ pen (hil) line-width 6 box 0x0 (quote (face/size - 3x0)) ]
-			doselect cidx "^-" (rejoin [ 'lexdat "/" (cdx) "/" 'lay ])
+			doselect "^-" (rejoin [ 'lexdat "/" (cdx) "/" 'lay ])
 		] 
 	]
 ]
@@ -138,9 +140,8 @@ lexdat/2/scratch: {append (append) append123 'append append? to-append /append [
 
 localrender: func [] [
 	noupdate: true
-	unless none? mccp/text [
-		unless mccp/text = "" [
-			mddp/text: copy mccp/text
+	unless none? srctxt [
+		unless srctxt = "" [
 			rxdat: copy [] 
 			foreach c lexdat [
 				if c/cdx = cidx [
@@ -151,40 +152,36 @@ localrender: func [] [
 			if (length? tdat) > 0 [
 				clear mddp/data
 				foreach d tdat [ unless none? d [ append rxdat d ] ]
-				print [ "localrender: checking richtext data before writing:^/" rxdat ]
-				;mddp/data: copy rxdat
-				clear rxdat
+				mddp/text: copy srctxt
+				mddp/data: copy rxdat
+				;clear rxdat
 			]
 		]
 	]
 	noupdate: false
 ]
 
-renderitall: func [ ] [
+renderitall: func [ tabi tabf ] [
+	print [ tabi "renderitall triggered by" tabf "..."]
 	;clear mddp/data
 	noupdate: true
     rxdat: copy []
-	foreach c lexdat [
-		print [ "^-checking words for: " c/nom ]	
+	foreach c lexdat [	
 		unless none? c/words [
-			unless c/words = "" [
-				;print "c/words: " c/words
-				o: c/rule
-				;print [ "lexdat rule returns: " o  ]
-				foreach r o [ unless none? r [ append rxdat r ] ]
-				;append rxdat copy o
-				;clear o
-				;print [ "incramental rxdat: " rxdat ]
-			]
+		    print [ tabi "^-parsing words for" c/nom "..." ]
+		    o: c/rule
+		    print [ tabi "^-cleansing parse results..."  ]
+		    foreach r o [ unless none? r [ append rxdat r ] ]
 		]
    	]
 	if (length? rxdat) > 0 [
-		mddp/text: copy mccp/text
+		print [ tabi "^-sending srctxt to mddp..."]
+		mddp/text: copy srctxt 
 		mddp/data: copy rxdat
-		;print [ "copied " rxdat " to " mddp/data ]
-		clear rxdat
+		;clear rxdat
 	]
 	noupdate: false
+	print [ tabi "renderitall is done."]
 ]
 
 cxhx: function [ c ] [
@@ -193,13 +190,13 @@ cxhx: function [ c ] [
 
 
 
-doselect: func [ i tabi tabf ] [
-	print [ tabi "doselect triggered by " tabf " idx= " i ]
+doselect: func [ tabi tabf ] [
+	print [ tabi "doselect triggered by " tabf " idx= " cidx ]
 	allgood: false
 	print [ tabi "^-checking cdx: " lexdat/:cidx/cdx ]
-	if lexdat/:cidx/cdx = i [
+	if lexdat/:cidx/cdx = cidx [
 		allgood: true
-		print [ tabi "^-found cdx " i " setting params..." ]
+		print [ tabi "^-cdx is in sync with" cidx " setting params..." ]
 		noupdate: true
 		unless none? lexdat/:cidx/nom [ cryn/text: lexdat/:cidx/nom ]
 		either none? lexdat/:cidx/fgc [ 
@@ -240,14 +237,15 @@ doselect: func [ i tabi tabf ] [
 		;therule/text: mold get 'lexdat/:cidx/rule
 		ftxt: "" parse (form lexdat/:cidx) [ thru "rule: " copy ftxt thru "o^/]" ]
 		therule/text: ftxt
-		if sourcemode/selected = 2 [ mccp/text: lexdat/:cidx/scratch ]
+		if sourcemode/selected = 1 [ mccp/text: copy globsrc srctxt: copy globsrc ]
+		if sourcemode/selected = 2 [ mccp/text: copy lexdat/:cidx/scratch srctxt: copy lexdat/:cidx/scratch ]
 		noupdate: false
-		print [ tabi "^-params sent, breaking out of data loop..."]
+		print [ tabi "^-^-params sent."]
 	]
 	either allgood [
 		foreach-face maap [
 			unless none? face/extra/idx [
-				if  face/extra/idx <> i [
+				if  face/extra/idx <> cidx [
 					if face/extra/pos = 'bg [
 						print [ tabi "^-clearing crayon draw..."]
 						clear face/draw
@@ -256,7 +254,7 @@ doselect: func [ i tabi tabf ] [
 			]
 		]
 		foreach-face maap [
-			if face/extra/idx = i [
+			if face/extra/idx = cidx [
 				if face/extra/pos = 'bg [ print [ tabi "^-setting crayon bg color to " bgcp/color "..." ] face/color: bgcp/color ]
 				if face/extra/pos = 'fg [ 
 					print [ tabi "^-setting crayon fg color to " fgcp/color "..." ]
@@ -269,8 +267,9 @@ doselect: func [ i tabi tabf ] [
 				break
 			]
 		]
-		renderitall
-	] [ print [ "crayon of cdx " i " not found" ] probe lexdat/1 probe lexdat/(i) ]
+		renderitall "^-" "doselect"
+	] [ print [ "cdx " lexdat/:cidx/cdx " is not in sync with current selection, lexdat needs to be sorted by cdx after any change to cdx" ] probe lexdat/(cidx) ]
+	print [ tabi "doselect function is done."]
 ]	
 
 backwashfgc: func [ col tabi tabf ] [
@@ -400,7 +399,9 @@ ripplecrayons: func [ ] [
 				;print [ "^-checking crayon" face/extra/cname "index:" face/extra/idx ]
 				if none? face/color [ face/color: 50.50.50 ]
 				either face/extra/idx = cidx [ append face/draw compose [ pen (hil) line-width 6 box 0x0 (face/size - 3x0) ] ] [ clear face/draw ]
+				print [ "^-offsetting face" face/extra/cname "at cdx" face/extra/idx "..."]
 				face/offset/y: tmarg + to-integer ((face/extra/idx - 1) * (face/size/y + 5))
+				print [ "^-^-face offset to:" face/offset/y ]
 				lo: max lo (face/offset/y + face/size/y)
 			]
 		]
@@ -634,11 +635,19 @@ view/tight/flags/options [
 					append maap/pane layout/only getmylayout c/cdx c/nom c/fgc c/bgc c/bol c/tal
 					;probe maap/pane
 				]
+				;; sort incoming data, just in case cdx was changed
+				sort/compare lexdat func [ a b ] [
+					case [
+						a/cdx > b/cdx [-1]
+						a/cdx < b/cdx [1]
+						a/cdx = b/cdx [0]
+					]
+				]
 			    ripplecrayons
 				nudgez
 				cidx: 1
 				noupdate: false
-				doselect 1 "^-" "lexers"
+				doselect "^-" "lexers"
 			]
 		]
 		pad 10x0
@@ -663,16 +672,18 @@ view/tight/flags/options [
 			if (lexname/text <> "") and (lexname/text <> none) [
 				estr: ""
 				foreach c lexdat [
-					estr: rejoin [ estr "name:^-^-^-" (c/nom) "^/"]
-					estr: rejoin [ estr "foreground:^-" (cxhx c/fgc) "^/"]
-					estr: rejoin [ estr "background:^-" (cxhx c/bgc) "^/"]
-					estr: rejoin [ estr "bold:^-^-^-" (c/bol) "^/"]
-					estr: rejoin [ estr "italic:^-^-" (c/tal) "^/"]
-					estr: rejoin [ estr "words:^-^-" (c/words) "^/^/^/^/"]
+					unless none? c/nom [
+						estr: rejoin [ estr "name:^-^-^-" c/nom "^/"]
+						either none? c/fgc 		[ estr: rejoin [ estr "foreground:^/" ] ]	[ estr: rejoin [ estr "foreground:^-^-" (cxhx c/fgc) "^/"]	]
+						either none? c/bgc 		[ estr: rejoin [ estr "background:^/" ] ]	[ estr: rejoin [ estr "background:^-^-" (cxhx c/bgc) "^/"]	]
+						either none? c/bol 		[ estr: rejoin [ estr "bold:^/" ] 		]	[ estr: rejoin [ estr "bold:^-^-^-" c/bol "^/"]				]
+						either none? c/tal 		[ estr: rejoin [ estr "italic:^/" ] 	]	[ estr: rejoin [ estr "italic:^-^-^-" c/tal "^/"]				]
+						either none? c/words 	[ estr: rejoin [ estr "words:^/" ]		]	[ estr: rejoin [ estr "words:^-^-^-" c/words "^/^/^/^/"] 		]
+					]
 				]
 				op: request-dir
 				unless none? op [
-		    		write to-file rejoin [ op lexname "_export.txt" ] estr
+		    		write to-file rejoin [ op lexname/text "_export.txt" ] estr
 				]
 			]
 		]
@@ -706,10 +717,42 @@ view/tight/flags/options [
 					ripplecrayons
 					nudgez
 					noupdate: false
-					doselect cidx "^-" "new-crayon button"	
+					doselect "^-" "new-crayon button"	
 			    ]
 				pad 5x0 button 30x33 "-" font-name "consolas" font-size 10 font-color 180.180.180 bold [ ]
-			    pad 5x0 button 30x33 "▼" font-name "consolas" font-size 10 font-color 180.180.180 bold [ ]
+			    pad 5x0 button 30x33 "▼" font-name "consolas" font-size 10 font-color 180.180.180 bold [ 
+					if cidx < (length? lexdat) [
+						fromname: lexdat/:cidx/nom
+						toname: lexdat/(cidx + 1)/nom
+						print [ "changing lexdat" lexdat/(cidx + 1)/cdx "to" cidx ]
+						lexdat/(cidx + 1)/cdx: cidx
+						print [ "changing lexdat" lexdat/(cidx)/cdx "to" (cidx + 1) ]
+						lexdat/:cidx/cdx: (cidx + 1)
+						foreach-face maap [
+							print [ "checking crayon" face/extra/cname ]
+						    if face/extra/cname = fromname [
+								print [ "^-changing crayon" face/extra/cname "idx from" face/extra/idx "to" (cidx + 1) ]
+								face/extra/idx: (cidx + 1)
+								print [ "^-^-verifying crayon" face/extra/cname "idx:" face/extra/idx ]
+							] 
+						    if face/extra/cname = toname [
+							    print [ "^-changing crayon" face/extra/cname "idx from" face/extra/idx "to" cidx ]
+							    face/extra/idx: cidx
+							    print [ "^-^-verifying crayon" face/extra/cname "idx:" face/extra/idx ]
+							]
+						]
+						sort/compare lexdat func [ a b ] [
+							case [
+								a/cdx > b/cdx [-1]
+								a/cdx < b/cdx [1]
+								a/cdx = b/cdx [0]
+							]
+						]
+						foreach c lexdat [ probe c/cdx ]
+						cidx: cidx + 1
+						ripplecrayons
+					]
+				]
 				pad 5x0 button 30x33 "▲" font-name "consolas" font-size 10 font-color 180.180.180 bold [ ]
 				pad 5x0 button 30x33 "↓" font-name "consolas" font-size 10 font-color 180.180.180 bold [
 					noupdate: true
@@ -748,8 +791,7 @@ view/tight/flags/options [
 					ripplecrayons
 					nudgez
 					noupdate: false
-					;probe cidx
-					;doselect cidx "^-" "new-crayon button"					
+					;probe cidx				
 				]
 				;button 30x33 "⮍" font-name "consolas" font-size 10 font-color 180.180.180 bold [ ]
 			]
@@ -790,7 +832,7 @@ view/tight/flags/options [
 								fcg/data: hxc/2 / 255.0
 								fcb/data: hxc/3 / 255.0
 								fgcp/color: hxc 
-								backwashfgc hxc  "^-" "fghx" renderitall
+								backwashfgc hxc  "^-" "fghx" renderitall "^-" "fghx field edit"
 								noupdate: false
 							]
 						]
@@ -802,7 +844,7 @@ view/tight/flags/options [
 						fcb/data: 0.0 
 						fghx/text: ""
 						fgcp/color: 50.50.50
-						backwashfgc none  "^-" "nofg" renderitall
+						backwashfgc none  "^-" "nofg" renderitall "^-" "nofg check"
 						noupdate: false 
 					]
 					return
@@ -812,7 +854,7 @@ view/tight/flags/options [
 							noupdate: true
 							fgcp/color: to-tuple reduce [ (to-integer (fcr/data * 255))  (to-integer (fcg/data * 255)) (to-integer (fcb/data * 255)) ] 
 							fghx/text: cxhx fgcp/color 
-							backwashfgc fgcp/color "^-" "fcr" renderitall
+							backwashfgc fgcp/color "^-" "fcr" renderitall "^-" "fcr slider change"
 							noupdate: false 
 						]
 					]
@@ -823,7 +865,7 @@ view/tight/flags/options [
 							noupdate: true
 							fgcp/color: to-tuple reduce [ (to-integer (fcr/data * 255)) (to-integer (fcg/data * 255)) (to-integer (fcb/data * 255)) ] 
 							fghx/text: cxhx fgcp/color 
-							backwashfgc fgcp/color "^-" "fcg" renderitall
+							backwashfgc fgcp/color "^-" "fcg" renderitall "^-" "fcg slider change"
 							noupdate: false
 						]
 					]
@@ -834,7 +876,7 @@ view/tight/flags/options [
 							noupdate: true
 							fgcp/color: to-tuple reduce [ (to-integer (fcr/data * 255)) (to-integer (fcg/data * 255)) (to-integer (fcb/data * 255)) ] 
 							fghx/text: cxhx fgcp/color 
-							backwashfgc fgcp/color "^-" "fcb" renderitall
+							backwashfgc fgcp/color "^-" "fcb" renderitall "^-" "fcb slider change"
 							noupdate: false
 						]
 					]
@@ -921,7 +963,7 @@ view/tight/flags/options [
 								]
 							]
 						]
-					] on-enter [ backwashwords renderitall ]
+					] on-enter [ backwashwords renderitall "^-" "theword area edit" ]
 					return
 					addword: button 40x30 "+" [ 
 						noupdate: true
@@ -1059,14 +1101,18 @@ view/tight/flags/options [
 		across
 		mcc: panel 390x400 40.40.40 [
 			mcch: panel 390x55 45.45.45 [
-				text 200x30 "source" font-name "consolas" font-size 24 font-color 80.80.80 bold
+				text 160x30 "source" font-name "consolas" font-size 24 font-color 80.80.80 bold
 				sourcemode: drop-list 100x30 data [ "global" "local" ] select 1  font-name "consolas" font-size 9 font-color 180.180.180 bold [
 					noupdate: true
 					switch sourcemode/selected [
-						1 [ mccp/font/color: 80.255.80 mccp/text: srctxt renderitall  ]
-						2 [ mccp/font/color: 255.80.80 mccp/text: lexdat/:cidx/scratch localrender ]
+						1 [ mccp/font/color: 80.255.80 mccp/text: copy globsrc srctxt: copy globsrc renderitall "^-" "sourcemode selection change"  ]
+						2 [ mccp/font/color: 255.80.80 mccp/text: copy lexdat/:cidx/scratch srctxt: copy lexdat/:cidx/scratch localrender ]
 					]
 					noupdate: false
+				]
+				text 80x30 "font size" font-name "consolas" font-size 10 font-color 180.180.180 bold
+				drop-list 60x30 data [ "9" "12" "14" "16" "18" "24" ] select 1 font-name "consolas" font-size 9 font-color 180.180.180 bold [
+				    mccp/font/size: to-integer face/data/(face/selected)
 				]
 			]
 			mccp: area 390x300 40.40.40 font-name "consolas" font-size 9 font-color 128.255.255 bold with [
@@ -1075,9 +1121,10 @@ view/tight/flags/options [
 			    unless noupdate [
 					unless none? face/text [
 						print [ "mccp text change event triggered..." ]
+						srctxt: copy face/text
 						switch sourcemode/selected [
-							1 [ srctxt: face/text renderitall ]
-							2 [ lexdat/:cidx/scratch: face/text localrender ]
+							1 [ globsrc: copy face/text renderitall "^-" "mccp area edit" ]
+							2 [ lexdat/:cidx/scratch: copy face/text localrender ]
 						]
 					]
 				]
@@ -1086,7 +1133,11 @@ view/tight/flags/options [
 		vv: panel 10x390 30.30.30 loose [] on-drag [ nudgev ]
 		mdd: panel 390x400 40.40.40 [
 			mddh: panel 390x55 45.45.45 [
-				text 200x30 "result" font-name "consolas" font-size 24 font-color 80.80.80 bold
+				text 160x30 "result" font-name "consolas" font-size 24 font-color 80.80.80 bold
+				text 80x30 "font size" font-name "consolas" font-size 10 font-color 180.180.180 bold
+				drop-list 60x30 data [ "9" "12" "14" "16" "18" "24" ] select 1 font-name "consolas" font-size 9 font-color 180.180.180 bold [
+				    mddp/font/size: to-integer face/data/(face/selected)
+				]
 			]
 			mddp: rich-text 390x345 40.40.40 font-name "consolas" font-size 9 font-color 128.128.128 bold
 		]   	
@@ -1105,7 +1156,7 @@ view/tight/flags/options [
 		]
 	    ripplecrayons
 		cidx: 1
-		doselect cidx "^-" "view initialize"
+		doselect "^-" "view initialize"
 		lsave/offset/x: tp/size/x - (lsave/size/x + marg)
 	    lnew/offset/x: lsave/offset/x - (lnew/size/x + marg)
 		lexname/offset/x: (lexers/offset/x + lexers/size/x + marg)
