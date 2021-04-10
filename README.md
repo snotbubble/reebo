@@ -13,7 +13,6 @@ then the boring stuff:
 - [ ] investigate exposing tab-width for gtk area widget
 - [ ] finish red .dyslex file
 - [ ] add bold & italic for the rich-text field
-- [ ] replace drop-down lists with custom popup menus
 - [ ] investigate background color for rich-text, without drawing boxes!
 - [ ] add an exporter for Geany (find a compatible lexer 1st that works with semicolon comments and square brackets)
 - [ ] add an exporter for emacs (probably based on lisp major mode, with overrides)
