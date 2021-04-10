@@ -14,9 +14,10 @@ Red [ needs 'view ]
 ;;
 ;;
 ;; TODO: [?] add sample code to dyslex file (requires extra layer of do load shitfuckery)
-;; TODO: [!] add crayon toolbar: add remove sort move-up move-down
 ;; TODO: [!] finish default parse rule
 ;; TODO: [!] add complete red dyslex file, save as default, embase it when done
+;; TODO: [X] add font-size to source toolbar
+;; TODO: [X] add crayon toolbar: add remove sort move-up move-down
 ;; TODO: [X] add local/global source switcher to source toolbar
 ;; TODO: [X] add local code sample per item in lexdat
 ;; TODO: [X] change data to series, use position as index
@@ -33,7 +34,6 @@ Red [ needs 'view ]
 ;; TODO: [-] add 3rd pane to top half, make it a tab-pane with: raw-data, console output
 ;; TODO: [-] investigate loopless access to ui items
 ;; TODO: [-] save/load code as bin: save/as brule: #{} rule 'redbin
-;; TODO: [ ] add font-size to source toolbar
 ;; TODO: [ ] investigate drag to re-order crayons
 ;; TODO: [ ] add bold and italic to rich-text field
 ;; TODO: [ ] add bgcolor to rich-text data
@@ -237,8 +237,8 @@ doselect: func [ tabi tabf ] [
 		;therule/text: mold get 'lexdat/:cidx/rule
 		ftxt: "" parse (form lexdat/:cidx) [ thru "rule: " copy ftxt thru "o^/]" ]
 		therule/text: ftxt
-		if sourcemode/selected = 1 [ mccp/text: copy globsrc srctxt: copy globsrc ]
-		if sourcemode/selected = 2 [ mccp/text: copy lexdat/:cidx/scratch srctxt: copy lexdat/:cidx/scratch ]
+		if smplbl/text = "sample (g)" [ mccp/text: copy globsrc srctxt: copy globsrc ]
+		if smplbl/text = "sample (l)" [ mccp/text: copy lexdat/:cidx/scratch srctxt: copy lexdat/:cidx/scratch ]
 		noupdate: false
 		print [ tabi "^-^-params sent."]
 	]
@@ -516,6 +516,8 @@ nudgev: func [] [
 	;mbbp/size/x: mbbh/size/x - (marg + marg + 1)
 	mccp/size/x: mcch/size/x - (marg + marg)
 	mddp/size/x: mddh/size/x - (marg + marg + 1)
+	mcfz/offset/x: mcch/size/x - 50
+	mdfz/offset/x: mddh/size/x - 50
 	vv/draw: compose/deep [ 
 		pen off 
 		fill-pen 100.100.100
@@ -1148,30 +1150,38 @@ view/tight/flags/options [
 		across
 		mcc: panel 390x400 40.40.40 [
 			mcch: panel 390x55 45.45.45 [
-				text 160x30 "source" font-name "consolas" font-size 24 font-color 80.80.80 bold
-				sourcemode: drop-list 100x30 data [ "global" "local" ] select 1  font-name "consolas" font-size 9 font-color 180.180.180 bold [
-					noupdate: true
-					switch sourcemode/selected [
-						1 [ mccp/font/color: 80.255.80 mccp/text: copy globsrc srctxt: copy globsrc renderitall "^-" "sourcemode selection change"  ]
-						2 [ mccp/font/color: 255.80.80 mccp/text: copy lexdat/:cidx/scratch srctxt: copy lexdat/:cidx/scratch localrender ]
+				smplbl: text 200x30 "sample (g)" font-name "consolas" font-size 24 font-color 80.80.80 bold on-down [
+					either face/text = "sample (g)" [ 
+						face/text: "sample (l)"
+						noupdate: true
+						mccp/font/color: 255.80.80 mccp/text: copy lexdat/:cidx/scratch srctxt: copy lexdat/:cidx/scratch localrender
+						noupdate: false
+					] [ 
+						face/text: "sample (g)"
+						noupdate: true
+						mccp/font/color: 80.255.80 mccp/text: copy globsrc srctxt: copy globsrc renderitall "^-" "smplbl toggle"
+						noupdate: false
 					]
-					noupdate: false
 				]
-				text 80x30 "font size" font-name "consolas" font-size 10 font-color 180.180.180 bold
-				drop-list 60x30 data [ "9" "12" "14" "16" "18" "24" ] select 1 font-name "consolas" font-size 9 font-color 180.180.180 bold [
-				    mccp/font/size: to-integer face/data/(face/selected)
+			    mcfz: text 50x30 "8" font-name "consolas" font-size 24 font-color 80.80.80 bold
+			] on-wheel [
+				either event/picked > 0 [
+					mccp/font/size: min (mccp/font/size + 2) 30
+				] [
+					mccp/font/size: max (mccp/font/size - 2) 8
 				]
+				mcfz/text: to-string mccp/font/size
 			]
-			mccp: area 390x300 40.40.40 font-name "consolas" font-size 9 font-color 128.255.255 bold with [
+			mccp: area 390x300 40.40.40 font-name "consolas" font-size 8 font-color 80.255.80 bold with [
 				text: srctxt
 			] on-change [ 
 			    unless noupdate [
 					unless none? face/text [
 						print [ "mccp text change event triggered..." ]
 						srctxt: copy face/text
-						switch sourcemode/selected [
-							1 [ globsrc: copy face/text renderitall "^-" "mccp area edit" ]
-							2 [ lexdat/:cidx/scratch: copy face/text localrender ]
+						switch smplbl/text [
+							"sample (g)" [ globsrc: copy face/text renderitall "^-" "mccp area edit" ]
+							"sample (l)" [ lexdat/:cidx/scratch: copy face/text localrender ]
 						]
 					]
 				]
@@ -1179,14 +1189,27 @@ view/tight/flags/options [
 		]
 		vv: panel 10x390 30.30.30 loose [] on-drag [ nudgev ]
 		mdd: panel 390x400 40.40.40 [
+			mddp: rich-text 390x345 40.40.40 font-name "consolas" font-size 8 font-color 128.128.128 bold on-wheel [				
+				either event/picked > 0 [
+					face/offset/y: face/offset/y + 40
+				] [
+					face/offset/y: face/offset/y - 40
+				]
+				bdo: mdd/size/y - face/size/y
+				bdo: min bdo 0
+	    		face/offset/y: max bdo min face/offset/y 55 
+			]
 			mddh: panel 390x55 45.45.45 [
 				text 160x30 "result" font-name "consolas" font-size 24 font-color 80.80.80 bold
-				text 80x30 "font size" font-name "consolas" font-size 10 font-color 180.180.180 bold
-				drop-list 60x30 data [ "9" "12" "14" "16" "18" "24" ] select 1 font-name "consolas" font-size 9 font-color 180.180.180 bold [
-				    mddp/font/size: to-integer face/data/(face/selected)
+				mdfz: text 50x30 "8" font-name "consolas" font-size 24 font-color 80.80.80 bold
+			] on-wheel [
+				either event/picked > 0 [
+					mddp/font/size: min (mddp/font/size + 2) 30
+				] [
+					mddp/font/size: max (mddp/font/size - 2) 8
 				]
+				mdfz/text: to-string mddp/font/size
 			]
-			mddp: rich-text 390x345 40.40.40 font-name "consolas" font-size 9 font-color 128.128.128 bold
 		]   	
 	]
 	do [ 
