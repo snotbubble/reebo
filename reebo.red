@@ -13,11 +13,14 @@ Red [ needs 'view ]
 ;; X : testing it
 ;;
 ;;
-;; TODO: [?] add sample code to dyslex file (requires extra layer of do load shitfuckery)
-;; TODO: [!] finish default parse rule
+;; TODO: [?] finish default parse rule - need to capture word at end
+;; TODO: [?] work around malicious tab-width code in gtk area fields
+;; TODO: [!] add bold and italic to rich-text field
 ;; TODO: [!] add complete red dyslex file, save as default, embase it when done
+;; TODO: [X] add sample code to dyslex file
 ;; TODO: [X] add font-size to source toolbar
 ;; TODO: [X] add crayon toolbar: add remove sort move-up move-down
+;; TODO: [X] add backwash bold italic and words
 ;; TODO: [X] add local/global source switcher to source toolbar
 ;; TODO: [X] add local code sample per item in lexdat
 ;; TODO: [X] change data to series, use position as index
@@ -26,19 +29,20 @@ Red [ needs 'view ]
 ;; TODO: [X] add exact function aquisition using parse print object
 ;; TODO: [X] add event that backwashes the rule function
 ;; TODO: [X] add sort by char-count
-;; TODO: [X] add backwash bold italic and words
 ;; TODO: [X] add bold/italic in crayon list
 ;; TODO: [X] add backwash rule
 ;; TODO: [X] add save/load dyslex files
 ;; TODO: [X] add reflow params
-;; TODO: [-] add 3rd pane to top half, make it a tab-pane with: raw-data, console output
 ;; TODO: [-] investigate loopless access to ui items
-;; TODO: [-] save/load code as bin: save/as brule: #{} rule 'redbin
 ;; TODO: [ ] investigate drag to re-order crayons
-;; TODO: [ ] add bold and italic to rich-text field
 ;; TODO: [ ] add bgcolor to rich-text data
+;; TODO: [ ] add safeteys: attempt-parsing, check for nones & empties, do a hostile-user test 
+;; TODO: [ ] icon
+;; TODO: [ ] add statusbar
+;; TODO: [ ] replace prints with option to log
+;; TODO: [ ] investigate scroll-up console from statusbar that prints log
+;; TODO: [ ] investigate embeded font
 ;; TODO: [ ] finish theming, test with other WMs
-
 
 marg: 10
 tabh: 0 ;; height of the statusbar (none atm)
@@ -63,7 +67,8 @@ view [
 	do [ button/offset: 0x370 button/size: 400x30 ]
 ]}
 
-getmylayout: func [ cdx nom fgc bgc bol tal ] [ 
+getmylayout: func [ tabi tabf cdx nom fgc bgc bol tal ] [ 
+	print [ tabi "getmylayout triggered by:" tabf "..." ]
     compose/deep [
 	    panel 300x55  with [ color: (bgc) ] extra [ idx: (cdx) cname: (nom) pos: 'bg ] draw [ ] [
 			below
@@ -85,14 +90,6 @@ getmylayout: func [ cdx nom fgc bgc bol tal ] [
 		] 
 	]
 ]
-
-parseruletest: {rtdat: copy []
-s: copy mccp/text
-pos: 1x1
-foreach w thewords/data [
-	parse s [any (pos: 0x0) [ to w mi: (pos/x: index? mi) thru w mo: (pos/y: (index? mo) -  (index? mi)) ] (append rtdat pos append rtdat fgcp/color) ]
-]
-mddp/data: rtdat}
 
 crayon: context [
 	cdx: 0
@@ -362,20 +359,20 @@ backwashrule: func [ ] [
 	if lexdat/:cidx/cdx = cidx [
 		unless none? therule/text [
 			if therule/text <> "" [
-				newobj: context [
-					cdx: cidx
-					nom: copy lexdat/:cidx/nom
-					fgc: lexdat/:cidx/fgc
-					bgc: lexdat/:cidx/bgc
-					bol: lexdat/:cidx/bol
-					tal: lexdat/:cidx/tal
-					words: copy lexdat/:cidx/words
-					rule: do (load therule/text)
-				]
-				lexdat/:cidx: copy/deep newobj
+				;newobj: context [
+				;	cdx: cidx
+				;	nom: copy lexdat/:cidx/nom
+				;	fgc: lexdat/:cidx/fgc
+				;	bgc: lexdat/:cidx/bgc
+				;	bol: lexdat/:cidx/bol
+				;	tal: lexdat/:cidx/tal
+				;	words: copy lexdat/:cidx/words
+				;	rule: do (load therule/text)
+				;	scratch: copy lexdat/:cidx/scratch
+				;]
+				;lexdat/:cidx: copy/deep newobj
 
-				; lexdat/:cidx/rule: do (bind load therule/text lexdat/:cidx)
-				; bind seems to be doing the same thing as rebuilding the object, disabling until I know exactly what its doing...
+				lexdat/:cidx/rule: do (bind load therule/text lexdat/:cidx)
 
 			    rr: "" parse (form lexdat/:cidx) [ thru "rule:" copy rr thru "o^/]" ]
 				print [ "changed rule:^/" rr ]
@@ -623,21 +620,21 @@ view/tight/flags/options [
 			unless noupdate [
 				print [ "lexers change event triggered..." ]
 				noupdate: true
-				;probe face/data/(face/selected)
+				clear lexdat
+				print [ "^-clearing lexdat: " lexdat]
 				lxn: copy face/data/(face/selected)
 				parse lxn [ remove thru "./" to "." remove to end ]
 				lexname/text: lxn
-				;probe face/data/(face/selected)
-				;blexdat: read/binary to-file face/data/(face/selected)
-				;lexdat: load/as blexdat 'redbin
-				lexdat: do [ reduce load to-file face/data/(face/selected) ]
-			    clear maap/pane
-				foreach c lexdat [
-					print [ "restoring list ui for crayon" c/nom "at index" c/cdx ]
-					append maap/pane layout/only getmylayout c/cdx c/nom c/fgc c/bgc c/bol c/tal
-					;probe maap/pane
-				]
-				;; sort incoming data, just in case cdx was changed
+				print [ "^-importing data from file:" face/data/(face/selected) ]
+				lexdatparts: do [ reduce load to-file face/data/(face/selected) ]
+				print "^-importing lexdat..."
+				lexdat: reduce copy lexdatparts/1
+				print "^-importing 'globsrc' code sample..."
+				globsrc: do copy lexdatparts/2
+				print "^-clearing lexdatparts..."
+				clear lexdatparts
+				probe lexdatparts
+			    print "^-sorting lexdat by index..."
 				sort/compare lexdat func [ a b ] [
 					case [
 						a/cdx > b/cdx [-1]
@@ -645,6 +642,17 @@ view/tight/flags/options [
 						a/cdx = b/cdx [0]
 					]
 				]
+				print "^-clearing crayon pane..."
+			    clear maap/pane
+				print [ "^-checking lexdat count:" (length? lexdat) ]
+				foreach c lexdat [
+					print [ "^-restoring list ui for crayon" c/nom "at index" c/cdx ]
+					;probe getmylayout "^-^-" "lexer selection change" c/cdx c/nom c/fgc c/bgc c/bol c/tal
+					wait 0.5
+					append maap/pane layout/only getmylayout "^-^-" "lexer selection change" c/cdx c/nom c/fgc c/bgc c/bol c/tal
+					;probe maap/pane
+				]
+				print "^-stacking crayons..."
 			    ripplecrayons
 				nudgez
 				cidx: 1
@@ -658,11 +666,20 @@ view/tight/flags/options [
 			if (lexname/text <> "") and (lexname/text <> none) [
 				noupdate: true
 			   	newlexname: rejoin [ "./" lexname/text ".dyslex" ]
+				either lexdatparts <> none [
+					clear lexdatparts
+					probe lexdatparts
+				] [
+
+				] lexdatparts: copy/deep [ [] [] ]
+				print [ "is lexdatparts empty? " lexdatparts ]
+				append lexdatparts/1 copy lexdat
+				append lexdatparts/2 copy globsrc
 				print [ "lnew button event triggered, writing lexdat..." ]
 				;save/as blexdat: #{} lexdat 'redbin
 				;probe blexdat
 			    ;write/binary to-file newlexname blexdat
-				write to-file newlexname lexdat
+				save to-file newlexname lexdatparts
 				clear lexers/data
 				lexers/data: (collect [foreach file read %./ [ if (find (to-string file) ".dyslex") [keep rejoin ["./" (to-string file)]] ]])
 				lexers/selected: index? find lexers/data newlexname
@@ -715,7 +732,7 @@ view/tight/flags/options [
 				    append lexdat copy/deep crayon
 					;probe lexdat/:cidx
 					lexdat/:cidx/cdx: cidx
-				    append maap/pane layout/only getmylayout cidx lexdat/:cidx/nom lexdat/:cidx/fgc lexdat/:cidx/bgc lexdat/:cidx/bol lexdat/:cidx/tal
+				    append maap/pane layout/only getmylayout "^-" "add crayon button" cidx lexdat/:cidx/nom lexdat/:cidx/fgc lexdat/:cidx/bgc lexdat/:cidx/bol lexdat/:cidx/tal
 					ripplecrayons
 					nudgez
 					noupdate: false
@@ -730,7 +747,7 @@ view/tight/flags/options [
 					n: 1
 					foreach c lexdat [ 
 						c/cdx: n n: n + 1
-						append maap/pane layout/only getmylayout c/cdx c/nom c/fgc c/bgc c/bol c/tal
+						append maap/pane layout/only getmylayout "^-" "remove crayon button" c/cdx c/nom c/fgc c/bgc c/bol c/tal
 					]
 					ripplecrayons
 					nudgez
@@ -998,8 +1015,8 @@ view/tight/flags/options [
 						]
 					]
 				]
-				ambold: check 100x30 "bold" extra [ reflo: true ] [ unless noupdate [ backwashstyle "^-" "ambold" ] ]
-				amital: check 100x30 "italic" extra [ reflo: true ] [ unless noupdate [ backwashstyle "^-" "amital" ] ]
+				ambold: check 100x30 "bold" extra [ reflo: true ] [ unless noupdate [ backwashstyle "^-" "ambold" renderitall "^-" "ambold check" ] ]
+				amital: check 100x30 "italic" extra [ reflo: true ] [ unless noupdate [ backwashstyle "^-" "amital" renderitall "^-" "amital check" ] ]
 				wordpanel: panel 380x250 [
 					wrdlbl: text 200x30 "words (processed in order)"
 					return
@@ -1152,13 +1169,15 @@ view/tight/flags/options [
 			mcch: panel 390x55 45.45.45 [
 				smplbl: text 200x30 "sample (g)" font-name "consolas" font-size 24 font-color 80.80.80 bold on-down [
 					either face/text = "sample (g)" [ 
-						face/text: "sample (l)"
 						noupdate: true
+						face/text: "sample (l)"
+						probe lexdat/:cidx
 						mccp/font/color: 255.80.80 mccp/text: copy lexdat/:cidx/scratch srctxt: copy lexdat/:cidx/scratch localrender
 						noupdate: false
 					] [ 
-						face/text: "sample (g)"
 						noupdate: true
+						face/text: "sample (g)"
+						probe lexdat/:cidx/scratch
 						mccp/font/color: 80.255.80 mccp/text: copy globsrc srctxt: copy globsrc renderitall "^-" "smplbl toggle"
 						noupdate: false
 					]
@@ -1173,7 +1192,7 @@ view/tight/flags/options [
 				mcfz/text: to-string mccp/font/size
 			]
 			mccp: area 390x300 40.40.40 font-name "consolas" font-size 8 font-color 80.255.80 bold with [
-				text: srctxt
+				text: copy srctxt
 			] on-change [ 
 			    unless noupdate [
 					unless none? face/text [
@@ -1189,7 +1208,7 @@ view/tight/flags/options [
 		]
 		vv: panel 10x390 30.30.30 loose [] on-drag [ nudgev ]
 		mdd: panel 390x400 40.40.40 [
-			mddp: rich-text 390x345 40.40.40 font-name "consolas" font-size 8 font-color 128.128.128 bold on-wheel [				
+			mddp: rich-text 390x345 40.40.40 font-name "consolas" font-size 8 font-color 128.128.128 on-wheel [				
 				either event/picked > 0 [
 					face/offset/y: face/offset/y + 40
 				] [
@@ -1222,7 +1241,7 @@ view/tight/flags/options [
 			;probe c
 			;append maap/pane layout/only  c/lay
 			;print [ "making ui from data..." c/cdx c/nom c/fgc/ c/rule ]
-			append maap/pane layout/only getmylayout c/cdx c/nom c/fgc c/bgc c/bol c/tal
+			append maap/pane layout/only getmylayout "^-" "initialize ui" c/cdx c/nom c/fgc c/bgc c/bol c/tal
 		]
 	    ripplecrayons
 		cidx: 1
