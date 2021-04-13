@@ -44,11 +44,13 @@ Red [ needs 'view ]
 ;; TODO: [ ] investigate embeded font
 ;; TODO: [ ] finish theming, test with other WMs
 
+recycle/off	
+
 marg: 10
 tabh: 0 ;; height of the statusbar (none atm)
 noupdate: false	;; stop ui chain-reactions
 cidx: 0  ;; the list selection index
-hil: 180.60.50
+hil: 200.80.50
 srctxt: {source text goes here}
 globsrc: {Red [needs 'view]
 makepanel: function [ ] [
@@ -70,7 +72,7 @@ view [
 getmylayout: func [ tabi tabf cdx nom fgc bgc bol tal ] [ 
 	print [ tabi "getmylayout triggered by:" tabf "..." ]
     compose/deep [
-	    panel 300x55  with [ color: (bgc) ] extra [ idx: (cdx) cname: (nom) pos: 'bg ] draw [ ] [
+	    panel 300x60  with [ color: (bgc) ] extra [ idx: (cdx) cname: (nom) pos: 'bg ] draw [ ] [
 			below
 		    text 200x30 with [ 
 				text: (nom) 
@@ -78,14 +80,14 @@ getmylayout: func [ tabi tabf cdx nom fgc bgc bol tal ] [
 				font: make font! [ 
 					name: "consolas" 
 					color: (fgc) 
-					size: 24 
+					size: 25 
 					style: [ (unless none? bol [if bol ['bold]])  (unless none? tal [if tal ['italic]])  ] 
 				] 
 			] extra [ idx: (cdx) cname: (nom) pos: 'fg ]
 		] on-down [ 
 			cidx: face/extra/idx
 			clear face/draw
-			append face/draw compose [ pen (hil) line-width 6 box 0x0 (quote (face/size - 3x0)) ]
+			append face/draw compose [ pen (hil) line-width 6 box 0x0 (quote (face/size)) ]
 			doselect "^-" (rejoin [ 'lexdat "/" (cdx) "/" 'lay ])
 		] 
 	]
@@ -395,7 +397,7 @@ ripplecrayons: func [ ] [
 			if face/extra/pos = 'bg [
 				;print [ "^-checking crayon" face/extra/cname "index:" face/extra/idx ]
 				if none? face/color [ face/color: 50.50.50 ]
-				either face/extra/idx = cidx [ append face/draw compose [ pen (hil) line-width 6 box 0x0 (face/size - 3x0) ] ] [ clear face/draw ]
+				either face/extra/idx = cidx [ append face/draw compose [ pen (hil) line-width 6 box 0x0 (face/size) ] ] [ clear face/draw ]
 				print [ "^-offsetting face" face/extra/cname "at cdx" face/extra/idx "..."]
 				face/offset/y: tmarg + to-integer ((face/extra/idx - 1) * (face/size/y + 5))
 				print [ "^-^-face offset to:" face/offset/y ]
@@ -587,7 +589,7 @@ nudgez: func [] [
 			face/size/x: maap/size/x - (to-integer (4 * marg))
 			if face/extra/idx = cidx [
 				clear face/draw
-			    append face/draw compose [ pen (hil) line-width 6 box 0x0 (face/size - 3x0) ]
+			    append face/draw compose [ pen (hil) line-width 6 box 0x0 (face/size) ]
 			]
 		]
    	]
@@ -621,12 +623,13 @@ view/tight/flags/options [
 				print [ "lexers change event triggered..." ]
 				noupdate: true
 				clear lexdat
-				print [ "^-clearing lexdat: " lexdat]
+				print [ "^-cleared lexdat: " lexdat]
 				lxn: copy face/data/(face/selected)
 				parse lxn [ remove thru "./" to "." remove to end ]
 				lexname/text: lxn
 				print [ "^-importing data from file:" face/data/(face/selected) ]
 				lexdatparts: do [ reduce load to-file face/data/(face/selected) ]
+				print [ "^-lexdatparts/1 count: " (length? reduce copy lexdatparts/1) ]
 				print "^-importing lexdat..."
 				lexdat: reduce copy lexdatparts/1
 				print "^-importing 'globsrc' code sample..."
@@ -648,7 +651,7 @@ view/tight/flags/options [
 				foreach c lexdat [
 					print [ "^-restoring list ui for crayon" c/nom "at index" c/cdx ]
 					;probe getmylayout "^-^-" "lexer selection change" c/cdx c/nom c/fgc c/bgc c/bol c/tal
-					wait 0.5
+					;wait 0.5
 					append maap/pane layout/only getmylayout "^-^-" "lexer selection change" c/cdx c/nom c/fgc c/bgc c/bol c/tal
 					;probe maap/pane
 				]
@@ -679,7 +682,7 @@ view/tight/flags/options [
 				;save/as blexdat: #{} lexdat 'redbin
 				;probe blexdat
 			    ;write/binary to-file newlexname blexdat
-				save to-file newlexname lexdatparts
+				write to-file newlexname lexdatparts
 				clear lexers/data
 				lexers/data: (collect [foreach file read %./ [ if (find (to-string file) ".dyslex") [keep rejoin ["./" (to-string file)]] ]])
 				lexers/selected: index? find lexers/data newlexname
@@ -860,6 +863,26 @@ view/tight/flags/options [
 					;probe cidx				
 				]
 				;button 30x33 "⮍" font-name "consolas" font-size 10 font-color 180.180.180 bold [ ]
+			] on-wheel [
+				ffs: -5
+				fsy: -10
+				if event/picked > 0 [
+				    ffs: 5
+					fsy: 10
+				]
+				foreach-face maap [
+					if face/extra/pos = 'bg [ face/size/y: min (max (face/size/y + fsy) 30) 130 ]
+					if (face/extra/idx = cidx) and (face/extra/pos = 'bg) [ 
+						clear face/draw 
+						append face/draw compose [ pen (hil) line-width 6 box 0x0 (face/size) ]
+					]
+					if face/extra/pos = 'fg [
+						face/size/y: face/parent/size/y - 10
+						face/font/size: min (max (face/font/size + ffs) 10) 60
+						face/offset/y: to-integer ( 0.5 * (face/parent/size/y - face/size/y))
+					]
+				]
+				ripplecrayons
 			]
 		]
 		zz: panel 10x390 30.30.30 loose [] on-drag [ nudgez ]
