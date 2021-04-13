@@ -1,12 +1,13 @@
 # reebo
-primarily a (frustrating) excercise in modifying code at runtime, as well as learning parse
+interactive syntax highlighting
+
+primarily an excercise in modifying code at runtime, parsing and batch build/destroy ui items.
 
 assume its busted unless there's a compiled binary
 
 ![screenie](210410_reebo_screenie.png)
 
 # todo
-- [ ] fix memory allocation crash caused by list-pane appending happening too quickly.
 - [ ] investigate drag reordering of crayons
 - [ ] investigate exposing tab-width for gtk area widget
 - [ ] finish red .dyslex file
