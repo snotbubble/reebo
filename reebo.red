@@ -46,7 +46,9 @@ Red [ needs 'view ]
 
 recycle/off	
 
+draggingcrayon: false
 marg: 10
+tmarg: 20
 tabh: 0 ;; height of the statusbar (none atm)
 noupdate: false	;; stop ui chain-reactions
 cidx: 0  ;; the list selection index
@@ -72,10 +74,10 @@ view [
 getmylayout: func [ tabi tabf cdx nom fgc bgc bol tal ] [ 
 	print [ tabi "getmylayout triggered by:" tabf "..." ]
     compose/deep [
-	    panel 300x60  with [ color: (bgc) ] extra [ idx: (cdx) cname: (nom) pos: 'bg ] draw [ ] [
+	    panel 300x60  with [ color: (bgc) ] extra [ idx: (cdx) cname: (nom) pos: 'bg ] loose draw [ ] [
 			below
-		    text 200x30 with [ 
-				text: (nom) 
+		    text 240x30 with [ 
+				text: rejoin [ "[" (cdx) "] " (nom) ]
 				color: (either none? bgc [50.50.50] [bgc ])
 				font: make font! [ 
 					name: "consolas" 
@@ -84,12 +86,49 @@ getmylayout: func [ tabi tabf cdx nom fgc bgc bol tal ] [
 					style: [ (unless none? bol [if bol ['bold]])  (unless none? tal [if tal ['italic]])  ] 
 				] 
 			] extra [ idx: (cdx) cname: (nom) pos: 'fg ]
-		] on-down [ 
-			cidx: face/extra/idx
-			clear face/draw
-			append face/draw compose [ pen (hil) line-width 6 box 0x0 (quote (face/size)) ]
-			doselect "^-" (rejoin [ 'lexdat "/" (cdx) "/" 'lay ])
-		] 
+		] on-down [
+			unless cidx = face/extra/idx [
+				cidx: face/extra/idx
+				print [ "down: cidx =" cidx ]
+				clear face/draw
+				append face/draw compose [ pen (hil) line-width 6 box 0x0 (quote (face/size)) ]
+				doselect "^-" (rejoin [ 'lexdat "/" (cdx) "/" 'lay ])
+			]
+		] on-drag [
+			draggingcrayon: true
+			face/offset/x: marg
+			tidx: 0
+			midx: face/extra/idx
+			nidx: to-integer (quote ( face/offset/y / face/size/y ))
+			face/offset/y: to-integer (quote (nidx * face/size/y)) + tmarg + (quote (5 * nidx))
+			nidx: nidx + 1
+			unless nidx = midx [
+				;print [ "new index is" nidx ]
+				foreach-face maap [
+					unless none? face/extra/pos [
+					    either face/extra/idx = midx [
+							if face/extra/pos = 'fg [ face/extra/idx: nidx ]
+						] [
+							;print [ "^-check overlap" nidx "with" face/extra/idx "from" midx ]
+							if face/extra/idx = nidx [ face/extra/idx: midx lexdat/:nidx/cdx: midx ]
+						]
+					]
+				]
+				face/extra/idx: nidx
+				lexdat/:midx/cdx: nidx
+				cidx: nidx
+				dragsort cidx
+				sort/compare lexdat func [ a b ] [
+					case [
+						a/cdx > b/cdx [-1]
+						a/cdx < b/cdx [1]
+						a/cdx = b/cdx [0]
+					]
+				]
+			]
+		] on-up [
+
+		]
 	]
 ]
 
@@ -384,12 +423,28 @@ backwashrule: func [ ] [
 	noupdate: false
 ]
 
+dragsort: func [ di ] [
+	foreach-face maap [
+		unless none? face/extra/pos [
+			if face/extra/pos = 'bg [
+				unless face/extra/idx = di [
+					if none? face/color [ face/color: 50.50.50 ]
+				    clear face/draw
+					face/offset/y: tmarg + to-integer ((face/extra/idx - 1) * (face/size/y + 5))
+				]
+			]
+			if face/extra/pos = 'fg [
+				face/text:  rejoin [ "[" face/extra/idx "] " face/extra/cname ]
+			]
+		]
+	]
+]
+
 ripplecrayons: func [ ] [
 	print [ "ripplecrayons triggered..." ] 
 	print [ "^-current cidx is:" cidx ]
 	;; stacks crayons by id, which should be synced to lexdat cdx
 	lo: 0
-	tmarg: 20
 	foreach-face maap [
 		;probe face/pane
 		unless none? face/extra/pos [
