@@ -34,7 +34,7 @@ Red [ needs 'view ]
 ;; TODO: [X] add save/load dyslex files
 ;; TODO: [X] add reflow params
 ;; TODO: [-] investigate loopless access to ui items
-;; TODO: [ ] investigate drag to re-order crayons
+;; TODO: [X] investigate drag to re-order crayons
 ;; TODO: [ ] add bgcolor to rich-text data
 ;; TODO: [ ] add safeteys: attempt-parsing, check for nones & empties, do a hostile-user test 
 ;; TODO: [ ] icon
