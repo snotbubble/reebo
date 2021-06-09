@@ -8,7 +8,6 @@ assume its busted unless there's a compiled binary
 ![screenie](210410_reebo_screenie.png)
 
 # todo
-- [ ] investigate drag reordering of crayons
 - [ ] investigate exposing tab-width for gtk area widget
 - [ ] finish red .dyslex file
 - [ ] investigate background color for rich-text, without drawing boxes!
